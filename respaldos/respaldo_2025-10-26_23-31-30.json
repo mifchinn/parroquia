@@ -1,0 +1,322 @@
+{
+    "configuracion": {
+        "id": 1,
+        "nombre": "Parroquia San Francisco de Asís",
+        "nit": "123456789-0",
+        "direccion": "Calle Principal #123, Quibdó, Chocó",
+        "telefono": "(4) 123-4567",
+        "otro": null,
+        "email": "parroquia.sanfrancisco@ejemplo.com",
+        "tasasalud": 4,
+        "tasapension": 4,
+        "factor_extras": 1.25,
+        "fecha_respaldo": null,
+        "fecha_creacion": "2025-10-26",
+        "fecha_actualizacion": "2025-10-26 17:30:53"
+    },
+    "tipodocumento": [
+        {
+            "id": 1,
+            "nombre": "Cedula de Ciudadania"
+        },
+        {
+            "id": 3,
+            "nombre": "Cedula de Extranjeria"
+        },
+        {
+            "id": 2,
+            "nombre": "Tarjeta de Identidad"
+        }
+    ],
+    "cargo": [
+        {
+            "id": 1,
+            "nombre": "Administrador"
+        },
+        {
+            "id": 2,
+            "nombre": "Empleado RH"
+        },
+        {
+            "id": 3,
+            "nombre": "Empleado General"
+        }
+    ],
+    "banco": [
+        {
+            "id": 1,
+            "nombre": "Bancolombia"
+        },
+        {
+            "id": 2,
+            "nombre": "Davivienda"
+        },
+        {
+            "id": 3,
+            "nombre": "BBVA"
+        },
+        {
+            "id": 4,
+            "nombre": "Banco de Bogota"
+        }
+    ],
+    "ciudad": [
+        {
+            "id": 1,
+            "nombre": "Quibdo"
+        },
+        {
+            "id": 2,
+            "nombre": "Bogota"
+        },
+        {
+            "id": 3,
+            "nombre": "Medellin"
+        },
+        {
+            "id": 4,
+            "nombre": "Cali"
+        },
+        {
+            "id": 5,
+            "nombre": "Barranquilla"
+        }
+    ],
+    "tipocuenta": [
+        {
+            "id": 1,
+            "nombre": "Ahorros"
+        },
+        {
+            "id": 2,
+            "nombre": "Corriente"
+        }
+    ],
+    "empleado": [
+        {
+            "id": 1,
+            "nombre": "Admin",
+            "apellido": "Sistema",
+            "password": "$2y$10$lU78G6xkR3b3rjMOubYOXuDI9pAeU6.YoVGBpZPkfTEPUdjYd1BgS",
+            "id_tipodoc": 1,
+            "documento": "123456",
+            "id_cargo": 1,
+            "id_banco": 1,
+            "id_ciudad": 1,
+            "id_tipcue": 1,
+            "cuenta": "000000",
+            "salario": "5000000.00",
+            "fechacreacion": "2025-10-26",
+            "fechamodificacion": "2025-10-26"
+        },
+        {
+            "id": 2,
+            "nombre": "Empleado",
+            "apellido": "General",
+            "password": "$2y$10$EI5GZ1kNJwTqPSCLOKnrLeZaL1eGPc0TdIZW2exC.LWvSr2qHUqTq",
+            "id_tipodoc": 1,
+            "documento": "12345",
+            "id_cargo": 3,
+            "id_banco": 1,
+            "id_ciudad": 1,
+            "id_tipcue": 1,
+            "cuenta": "000001",
+            "salario": "2000000.00",
+            "fechacreacion": "2025-10-26",
+            "fechamodificacion": "2025-10-26"
+        }
+    ],
+    "liquidacion": [
+        {
+            "id": 1,
+            "id_empleado": 1,
+            "mes": 1,
+            "ano": 2025,
+            "dias_trabajados": 30,
+            "salario_base": "5000000.00",
+            "devengos": "5000000.00",
+            "deducciones_total": "400000.00",
+            "aportes_total": "1441666.67",
+            "total_neto": "4600000.00",
+            "tipo_liquidacion": "mensual",
+            "fecha_liquidacion": "2025-10-26"
+        },
+        {
+            "id": 2,
+            "id_empleado": 2,
+            "mes": 1,
+            "ano": 2025,
+            "dias_trabajados": 30,
+            "salario_base": "2000000.00",
+            "devengos": "2000000.00",
+            "deducciones_total": "160000.00",
+            "aportes_total": "576666.67",
+            "total_neto": "1840000.00",
+            "tipo_liquidacion": "mensual",
+            "fecha_liquidacion": "2025-10-26"
+        }
+    ],
+    "deducciones": [
+        {
+            "id": 1,
+            "id_liquidacion": 1,
+            "tipo": "salud",
+            "monto": "200000.00",
+            "base": "5000000.00",
+            "porcentaje": "4.00"
+        },
+        {
+            "id": 2,
+            "id_liquidacion": 1,
+            "tipo": "pension",
+            "monto": "200000.00",
+            "base": "5000000.00",
+            "porcentaje": "4.00"
+        },
+        {
+            "id": 3,
+            "id_liquidacion": 2,
+            "tipo": "salud",
+            "monto": "80000.00",
+            "base": "2000000.00",
+            "porcentaje": "4.00"
+        },
+        {
+            "id": 4,
+            "id_liquidacion": 2,
+            "tipo": "pension",
+            "monto": "80000.00",
+            "base": "2000000.00",
+            "porcentaje": "4.00"
+        }
+    ],
+    "aportes": [
+        {
+            "id": 1,
+            "id_liquidacion": 1,
+            "tipo": "salud",
+            "monto": "425000.00",
+            "base": "5000000.00",
+            "porcentaje": "8.50",
+            "cobrado": 0,
+            "fecha_cobro": null
+        },
+        {
+            "id": 2,
+            "id_liquidacion": 1,
+            "tipo": "pension",
+            "monto": "600000.00",
+            "base": "5000000.00",
+            "porcentaje": "12.00",
+            "cobrado": 0,
+            "fecha_cobro": null
+        },
+        {
+            "id": 3,
+            "id_liquidacion": 1,
+            "tipo": "cesantia",
+            "monto": "416666.67",
+            "base": "5000000.00",
+            "porcentaje": "8.33",
+            "cobrado": 0,
+            "fecha_cobro": null
+        },
+        {
+            "id": 4,
+            "id_liquidacion": 2,
+            "tipo": "salud",
+            "monto": "170000.00",
+            "base": "2000000.00",
+            "porcentaje": "8.50",
+            "cobrado": 0,
+            "fecha_cobro": null
+        },
+        {
+            "id": 5,
+            "id_liquidacion": 2,
+            "tipo": "pension",
+            "monto": "240000.00",
+            "base": "2000000.00",
+            "porcentaje": "12.00",
+            "cobrado": 0,
+            "fecha_cobro": null
+        },
+        {
+            "id": 6,
+            "id_liquidacion": 2,
+            "tipo": "cesantia",
+            "monto": "166666.67",
+            "base": "2000000.00",
+            "porcentaje": "8.33",
+            "cobrado": 0,
+            "fecha_cobro": null
+        }
+    ],
+    "prestaciones": [
+        {
+            "id": 1,
+            "id_empleado": 1,
+            "tipo": "prima",
+            "monto": "416666.67",
+            "base": "5000000.00",
+            "fecha": "2025-01-01"
+        },
+        {
+            "id": 2,
+            "id_empleado": 1,
+            "tipo": "cesantias",
+            "monto": "416666.67",
+            "base": "5000000.00",
+            "fecha": "2025-01-01"
+        },
+        {
+            "id": 3,
+            "id_empleado": 1,
+            "tipo": "vacaciones",
+            "monto": "208333.33",
+            "base": "5000000.00",
+            "fecha": "2025-01-01"
+        },
+        {
+            "id": 4,
+            "id_empleado": 2,
+            "tipo": "prima",
+            "monto": "166666.67",
+            "base": "2000000.00",
+            "fecha": "2025-01-01"
+        },
+        {
+            "id": 5,
+            "id_empleado": 2,
+            "tipo": "cesantias",
+            "monto": "166666.67",
+            "base": "2000000.00",
+            "fecha": "2025-01-01"
+        },
+        {
+            "id": 6,
+            "id_empleado": 2,
+            "tipo": "vacaciones",
+            "monto": "83333.33",
+            "base": "2000000.00",
+            "fecha": "2025-01-01"
+        }
+    ],
+    "aprobacion": [
+        {
+            "id": 1,
+            "id_liquidacion": 1,
+            "estado": "aprobada",
+            "fecha_aprobacion": "2025-10-26",
+            "observaciones": ""
+        },
+        {
+            "id": 2,
+            "id_liquidacion": 2,
+            "estado": "aprobada",
+            "fecha_aprobacion": "2025-10-26",
+            "observaciones": ""
+        }
+    ],
+    "comprobante": []
+}

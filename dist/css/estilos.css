@@ -1,0 +1,32 @@
+/* LOGO */
+.logo {
+  background-image: url(../images/logo.png);
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-position: center;
+
+}
+
+/* INPUT */
+[class*="mb-"] {
+  position: relative;
+}
+
+.form-label {
+  position: absolute;
+  top: 50%;
+  left: 20px;
+  transform: translateY(-50%);
+  background: white;
+  padding: 0 0.25rem;
+  transition: 0.2s ease all;
+  pointer-events: none;
+  color: var(--bs-primary);
+}
+
+.form-control:focus+.form-label,
+.form-control:not(:placeholder-shown)+.form-label {
+  top: 0;
+  transform: translateY(-50%) scale(0.85);
+  color: var(--bs-primary);
+}
