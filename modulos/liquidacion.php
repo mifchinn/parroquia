@@ -464,12 +464,12 @@ $message = '<div class="alert alert-warning">Ya existe una liquidación de ' . $
                }
            }
        } else {
-           $message = '<div class="alert alert-danger">Empleado no encontrado o salario invalido.</div>';
+           // Solo mostrar este mensaje si se envió el formulario POST
+           if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+               $message = '<div class="alert alert-danger">Empleado no encontrado o salario invalido.</div>';
+           }
        }
-   } else {
-       $message = '<div class="alert alert-danger">Datos invalidos.</div>';
-   }
-}
+ 
 ?>
 
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
