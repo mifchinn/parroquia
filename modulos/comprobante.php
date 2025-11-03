@@ -221,7 +221,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 
                 // Mostrar horas extras si existen
                 if (isset($liq['horas_extras_cantidad']) && $liq['horas_extras_cantidad'] > 0) {
-                    $html .= '<tr><td>Horas Extras (' . number_format($liq['horas_extras_cantidad'], 1, ',', '.') . ' h):</td><td class="text-end">$ ' . number_format($liq['horas_extras_valor'], 0, ',', '.') . '</td></tr>';
+                    $horas_extras_valor = isset($liq['horas_extras_valor']) ? (float)$liq['horas_extras_valor'] : 0;
+                    $html .= '<tr><td>Horas Extras (' . number_format($liq['horas_extras_cantidad'], 1, ',', '.') . ' h):</td><td class="text-end">$ ' . number_format($horas_extras_valor, 0, ',', '.') . '</td></tr>';
                 }
                 
                 // Mostrar incapacidad si existe
@@ -230,11 +231,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
                 
                 // Calcular extras manuales si existen
-                $extras_manuales = $liq['devengos'] - $liq['salario_base'] - ($liq['horas_extras_valor'] ?? 0) - ($liq['incapacidad_valor'] ?? 0);
-                if ($extras_manuales > 0) {
-                    $html .= '<tr><td>Extras Manuales:</td><td class="text-end">$ ' . number_format($extras_manuales, 0, ',', '.') . '</td></tr>';
-                } elseif ($extras_manuales < 0) {
-                    $html .= '<tr><td>Descuentos Manuales:</td><td class="text-end">$ ' . number_format(abs($extras_manuales), 0, ',', '.') . '</td></tr>';
+                $horas_extras_valor = isset($liq['horas_extras_valor']) ? (float)$liq['horas_extras_valor'] : 0;
+                $incapacidad_valor = isset($liq['incapacidad_valor']) ? (float)$liq['incapacidad_valor'] : 0;
+                $extras_manuales = (float)$liq['devengos'] - (float)$liq['salario_base'] - $horas_extras_valor - $incapacidad_valor;
+                
+                // Si hay horas extras y extras manuales, mostrarlos como un acumulado
+                if (isset($liq['horas_extras_cantidad']) && $liq['horas_extras_cantidad'] > 0 && $extras_manuales > 0) {
+                    $total_extras = $horas_extras_valor + $extras_manuales;
+                    $html .= '<tr><td>Horas Extras y Manuales (' . number_format($liq['horas_extras_cantidad'], 1, ',', '.') . ' h):</td><td class="text-end">$ ' . number_format($total_extras, 0, ',', '.') . '</td></tr>';
+                } else {
+                    // Si solo hay horas extras
+                    if (isset($liq['horas_extras_cantidad']) && $liq['horas_extras_cantidad'] > 0) {
+                        // Ya se mostró arriba
+                    }
+                    // Si solo hay extras manuales
+                    if ($extras_manuales > 0) {
+                        $html .= '<tr><td>Extras Manuales:</td><td class="text-end">$ ' . number_format($extras_manuales, 0, ',', '.') . '</td></tr>';
+                    } elseif ($extras_manuales < 0) {
+                        $html .= '<tr><td>Descuentos Manuales:</td><td class="text-end">$ ' . number_format(abs($extras_manuales), 0, ',', '.') . '</td></tr>';
+                    }
                 }
             }
             
