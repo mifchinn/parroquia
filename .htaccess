@@ -1,27 +1,20 @@
+# Configuración para el sistema de liquidación de nómina
+
+# Activar motor de reescritura
 RewriteEngine On
-RewriteBase /parroquia/
 
-# Denegar acceso a archivos sensibles en root/
-RewriteRule ^root/(config\.php|utils\.php)$ - [F,L]
+# Evitar acceso directo a archivos sensibles
+<Files ~ "\.(sql|log|md)$">
+    Order allow,deny
+    Deny from all
+</Files>
 
-# Permitir solo archivos específicos en api
-RewriteCond %{REQUEST_URI} ^/parroquia/api/
+# Regla general para módulos (si no coincide con reglas específicas)
 RewriteCond %{REQUEST_FILENAME} !-f
-RewriteRule ^api/(?!login\.php|validate_empleado\.php|empleados_disponibles\.php|guardar_liquidacion_masiva\.php|respaldo\.php)(.*)$ - [F,L]
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^([a-zA-Z0-9_-]+)/?$ index.php?module=$1 [L,QSA]
 
-# Rewrite para módulos clean URLs: /empleados -> index.php?module=empleados
-RewriteRule ^(empleados|liquidacion|aprobacion|comprobante|reportes|importarEmpleados|manual|configuracion)$ index.php?module=$1 [L,QSA]
-
-# Headers de seguridad
-<IfModule mod_headers.c>
-    Header always set X-Content-Type-Options nosniff
-    Header always set X-Frame-Options DENY
-    Header always set X-XSS-Protection "1; mode=block"
-    Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains" env=HTTPS
-</IfModule>
-
-# Permitir acceso a dist/ para assets (si se usa)
-<IfModule mod_rewrite.c>
-    RewriteCond %{REQUEST_URI} ^/parroquia/dist/
-    RewriteRule ^dist/ - [L]
-</IfModule>
+# Página por defecto
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule .? index.php [L]

@@ -218,11 +218,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $html .= '<tr><td colspan="2" class="text-muted small">Las primas no tienen concepto de extras</td></tr>';
             } else {
                 $html .= '<tr><td>Salario Base:</td><td class="text-end">$ ' . number_format($liq['salario_base'], 0, ',', '.') . '</td></tr>';
-                $extras = $liq['devengos'] - $liq['salario_base'];
-                if ($extras > 0) {
-                    $html .= '<tr><td>Extras:</td><td class="text-end">$ ' . number_format($extras, 0, ',', '.') . '</td></tr>';
-                } elseif ($extras < 0) {
-                    $html .= '<tr><td>Descuentos:</td><td class="text-end">$ ' . number_format(abs($extras), 0, ',', '.') . '</td></tr>';
+                
+                // Mostrar horas extras si existen
+                if (isset($liq['horas_extras_cantidad']) && $liq['horas_extras_cantidad'] > 0) {
+                    $html .= '<tr><td>Horas Extras (' . number_format($liq['horas_extras_cantidad'], 1, ',', '.') . ' h):</td><td class="text-end">$ ' . number_format($liq['horas_extras_valor'], 0, ',', '.') . '</td></tr>';
+                }
+                
+                // Mostrar incapacidad si existe
+                if (isset($liq['incapacidad_dias']) && $liq['incapacidad_dias'] > 0) {
+                    $html .= '<tr><td>Incapacidad (' . $liq['incapacidad_dias'] . ' días):</td><td class="text-end">$ ' . number_format($liq['incapacidad_valor'], 0, ',', '.') . '</td></tr>';
+                }
+                
+                // Calcular extras manuales si existen
+                $extras_manuales = $liq['devengos'] - $liq['salario_base'] - ($liq['horas_extras_valor'] ?? 0) - ($liq['incapacidad_valor'] ?? 0);
+                if ($extras_manuales > 0) {
+                    $html .= '<tr><td>Extras Manuales:</td><td class="text-end">$ ' . number_format($extras_manuales, 0, ',', '.') . '</td></tr>';
+                } elseif ($extras_manuales < 0) {
+                    $html .= '<tr><td>Descuentos Manuales:</td><td class="text-end">$ ' . number_format(abs($extras_manuales), 0, ',', '.') . '</td></tr>';
                 }
             }
             

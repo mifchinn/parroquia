@@ -15,13 +15,16 @@ $pdo = getDBConnection();
 $tasas_config = [];
 
 try {
-    $stmt = $pdo->query("SELECT tasasalud, tasapension, factor_extras FROM configuracion WHERE id = 1");
+    $stmt = $pdo->query("SELECT tasasalud, tasapension, factor_extras, incapacidad_primeros_dias, incapacidad_siguiente_dias, incapacidad_limite_dias FROM configuracion WHERE id = 1");
     $config_data = $stmt->fetch(PDO::FETCH_ASSOC);
     if ($config_data) {
         $tasas_config = [
             'tasasalud' => (float)$config_data['tasasalud'],
             'tasapension' => (float)$config_data['tasapension'],
-            'factor_extras' => (float)$config_data['factor_extras']
+            'factor_extras' => (float)$config_data['factor_extras'],
+            'incapacidad_primeros_dias' => (float)$config_data['incapacidad_primeros_dias'],
+            'incapacidad_siguiente_dias' => (float)$config_data['incapacidad_siguiente_dias'],
+            'incapacidad_limite_dias' => (int)$config_data['incapacidad_limite_dias']
         ];
     } else {
         // Si no hay configuración, mostrar error
@@ -30,6 +33,73 @@ try {
 } catch (Exception $e) {
     // Si hay error, mostrar mensaje
     die("Error al obtener la configuración: " . $e->getMessage());
+}
+
+// Función para calcular horas extras de un empleado en un período
+function calcularHorasExtras($pdo, $id_empleado, $ano, $mes) {
+    $stmt = $pdo->prepare("
+        SELECT fecha_inicio, hora_inicio, fecha_fin, hora_fin
+        FROM novedades
+        WHERE id_empleado = ? AND tipo = 'hora_extra'
+        AND YEAR(fecha_inicio) = ? AND MONTH(fecha_inicio) = ?
+    ");
+    $stmt->execute([$id_empleado, $ano, $mes]);
+    $horas_extras = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    $total_horas = 0;
+    foreach ($horas_extras as $extra) {
+        $inicio = new DateTime($extra['fecha_inicio'] . ' ' . $extra['hora_inicio']);
+        $fin = new DateTime($extra['fecha_fin'] . ' ' . $extra['hora_fin']);
+        $diferencia = $inicio->diff($fin);
+        $total_horas += $diferencia->h + ($diferencia->i / 60);
+    }
+    
+    return $total_horas;
+}
+
+// Función para calcular incapacidad de un empleado en un período
+function calcularIncapacidad($pdo, $id_empleado, $ano, $mes, $salario_diario, $config) {
+    $stmt = $pdo->prepare("
+        SELECT fecha_inicio, fecha_fin
+        FROM novedades
+        WHERE id_empleado = ? AND tipo = 'incapacidad'
+        AND YEAR(fecha_inicio) = ? AND MONTH(fecha_inicio) = ?
+    ");
+    $stmt->execute([$id_empleado, $ano, $mes]);
+    $incapacidades = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    $total_dias = 0;
+    $total_valor = 0;
+    
+    foreach ($incapacidades as $incapacidad) {
+        $inicio = new DateTime($incapacidad['fecha_inicio']);
+        $fin = new DateTime($incapacidad['fecha_fin']);
+        $dias = $inicio->diff($fin)->days + 1; // Incluir ambos días
+        
+        // Limitar al máximo configurado
+        $dias = min($dias, $config['incapacidad_limite_dias']);
+        $total_dias += $dias;
+        
+        // Calcular valor según normas colombianas
+        if ($dias <= 2) {
+            // Primeros 2 días: paga el empleador
+            $valor = $salario_diario * $dias * ($config['incapacidad_primeros_dias'] / 100);
+        } else {
+            // Primeros 2 días: paga el empleador
+            $valor_primeros = $salario_diario * 2 * ($config['incapacidad_primeros_dias'] / 100);
+            // Días restantes: paga la EPS
+            $dias_restantes = $dias - 2;
+            $valor_restantes = $salario_diario * $dias_restantes * ($config['incapacidad_siguiente_dias'] / 100);
+            $valor = $valor_primeros + $valor_restantes;
+        }
+        
+        $total_valor += $valor;
+    }
+    
+    return [
+        'dias' => $total_dias,
+        'valor' => $total_valor
+    ];
 }
 
 $message = '';
@@ -212,7 +282,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                // Liquidación mensual normal con ajuste por días trabajados
                $factor_dias = $dias_trabajados / 30;
                $salario_ajustado = $salario_base * $factor_dias;
-               $devengos = $salario_ajustado + $extras;
+               
+               // Calcular horas extras del período
+               $horas_extras_cantidad = calcularHorasExtras($pdo, $id_empleado, $ano, $mes);
+               $valor_hora_extra = ($salario_base / 240) * $tasas_config['factor_extras']; // 240 horas mensuales promedio
+               $horas_extras_valor = $horas_extras_cantidad * $valor_hora_extra;
+               
+               // Calcular incapacidad del período
+               $salario_diario = $salario_base / 30;
+               $incapacidad_data = calcularIncapacidad($pdo, $id_empleado, $ano, $mes, $salario_diario, $tasas_config);
+               $incapacidad_dias = $incapacidad_data['dias'];
+               $incapacidad_valor = $incapacidad_data['valor'];
+               
+               // Calcular devengos totales
+               $devengos = $salario_ajustado + $extras + $horas_extras_valor + $incapacidad_valor;
 
                // Deducciones empleado usando tasas parametrizadas
                $salud = $devengos * ($tasas_config['tasasalud'] / 100);
@@ -265,6 +348,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                'salario_base' => $salario_base,
                'dias_trabajados' => $dias_trabajados,
                'extras' => $extras,
+               'horas_extras_cantidad' => $horas_extras_cantidad ?? 0,
+               'horas_extras_valor' => $horas_extras_valor ?? 0,
+               'incapacidad_dias' => $incapacidad_dias ?? 0,
+               'incapacidad_valor' => $incapacidad_valor ?? 0,
                'devengos' => $devengos,
                'deducciones' => ['salud' => $salud, 'pension' => $pension],
                'deducciones_total' => $deducciones_total,
@@ -307,8 +394,8 @@ $message = '<div class="alert alert-warning">Ya existe una liquidación de ' . $
                    $message = '<div class="alert alert-danger">Ya existe una liquidación de ' . $tipo_desc . $mn . '/' . $ano . ' para este empleado.</div>';
                } else {
                    // Insert liquidacion
-                   $stmt = $pdo->prepare("INSERT INTO liquidacion (id_empleado, mes, ano, dias_trabajados, salario_base, devengos, deducciones_total, aportes_total, total_neto, tipo_liquidacion) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-                   $stmt->execute([$id_empleado, $mes, $ano, $dias_trabajados, $salario_base, $devengos, $deducciones_total, $aportes_total, $total_neto, $tipo_liquidacion]);
+                   $stmt = $pdo->prepare("INSERT INTO liquidacion (id_empleado, mes, ano, dias_trabajados, salario_base, devengos, horas_extras, horas_extras_cantidad, incapacidad_valor, incapacidad_dias, deducciones_total, aportes_total, total_neto, tipo_liquidacion) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                   $stmt->execute([$id_empleado, $mes, $ano, $dias_trabajados, $salario_base, $devengos, $horas_extras_valor ?? 0, $horas_extras_cantidad ?? 0, $incapacidad_valor ?? 0, $incapacidad_dias ?? 0, $deducciones_total, $aportes_total, $total_neto, $tipo_liquidacion]);
                    $id_liquidacion = $pdo->lastInsertId();
 
                    // Insert deducciones (con base) - solo si no es prima
@@ -384,9 +471,9 @@ $message = '<div class="alert alert-warning">Ya existe una liquidación de ' . $
                         <div class="col-md-3">
                             <div class="mb-3">
                                 <select class="form-control" id="id_empleado" name="id_empleado" required>
-                                    <option value="" disabled selected>Seleccionar empleado</option>
+                                    <option value="" disabled <?php echo (!isset($id_empleado) || $id_empleado == 0) ? 'selected' : ''; ?>>Seleccionar empleado</option>
                                     <?php foreach ($empleados as $emp): ?>
-                                        <option value="<?php echo $emp['id']; ?>">
+                                        <option value="<?php echo $emp['id']; ?>" <?php echo (isset($id_empleado) && $id_empleado == $emp['id']) ? 'selected' : ''; ?>>
                                             <?php echo htmlspecialchars($emp['nombre'] . ' ' . $emp['apellido'] . ' - $' . number_format($emp['salario'], 0, ',', '.')); ?>
                                         </option>
                                     <?php endforeach; ?>
@@ -396,10 +483,10 @@ $message = '<div class="alert alert-warning">Ya existe una liquidación de ' . $
                         </div>
                         <div class="col-md-3">
                             <div class="mb-3">
-                                <select class="form-control" id="ano" name="ano" required disabled>
-                                    <option value="" disabled selected>Seleccionar año</option>
+                                <select class="form-control" id="ano" name="ano" required <?php echo (!isset($id_empleado) || $id_empleado == 0) ? 'disabled' : ''; ?>>
+                                    <option value="" disabled <?php echo (!isset($ano) || $ano == 0) ? 'selected' : ''; ?>>Seleccionar año</option>
                                     <?php for ($y = date('Y'); $y >= 2024; $y--): ?>
-                                        <option value="<?php echo $y; ?>"><?php echo $y; ?></option>
+                                        <option value="<?php echo $y; ?>" <?php echo (isset($ano) && $ano == $y) ? 'selected' : ''; ?>><?php echo $y; ?></option>
                                     <?php endfor; ?>
                                 </select>
                                 <label for="ano" class="form-label">Año</label>
@@ -407,8 +494,8 @@ $message = '<div class="alert alert-warning">Ya existe una liquidación de ' . $
                         </div>
                         <div class="col-md-3">
                             <div class="mb-3">
-                                <select class="form-control" id="mes" name="mes" required disabled>
-                                    <option value="" disabled selected>Seleccionar mes</option>
+                                <select class="form-control" id="mes" name="mes" required <?php echo (!isset($id_empleado) || $id_empleado == 0 || !isset($ano) || $ano == 0) ? 'disabled' : ''; ?>>
+                                    <option value="" disabled <?php echo (!isset($mes_valor) || empty($mes_valor)) ? 'selected' : ''; ?>>Seleccionar mes</option>
                                     <?php
                                     $meses_es = [
                                         1 => 'Enero', 2 => 'Febrero', 3 => 'Marzo', 4 => 'Abril',
@@ -416,17 +503,17 @@ $message = '<div class="alert alert-warning">Ya existe una liquidación de ' . $
                                         9 => 'Septiembre', 10 => 'Octubre', 11 => 'Noviembre', 12 => 'Diciembre'
                                     ];
                                     for ($m = 1; $m <= 12; $m++): ?>
-                                        <option value="<?php echo $m; ?>"><?php echo $meses_es[$m]; ?></option>
+                                        <option value="<?php echo $m; ?>" <?php echo (isset($mes_valor) && $mes_valor == $m) ? 'selected' : ''; ?>><?php echo $meses_es[$m]; ?></option>
                                     <?php endfor; ?>
-                                    <option value="6-prima">Junio - Prima</option>
-                                    <option value="12-prima">Diciembre - Prima</option>
+                                    <option value="6-prima" <?php echo (isset($mes_valor) && $mes_valor == '6-prima') ? 'selected' : ''; ?>>Junio - Prima</option>
+                                    <option value="12-prima" <?php echo (isset($mes_valor) && $mes_valor == '12-prima') ? 'selected' : ''; ?>>Diciembre - Prima</option>
                                 </select>
                                 <label for="mes" class="form-label">Mes</label>
                             </div>
                         </div>
-                        <div class="col-md-2">
+                        <div class="col-md-3">
                             <div class="mb-3">
-                                <input type="number" class="form-control" id="dias_trabajados" name="dias_trabajados" placeholder="" value="30" min="1" max="30">
+                                <input type="number" class="form-control" id="dias_trabajados" name="dias_trabajados" placeholder="" value="<?php echo isset($dias_trabajados) ? $dias_trabajados : 30; ?>" min="1" max="30">
                                 <label for="dias_trabajados" class="form-label">Días trabajados</label>
                             </div>
                         </div>
@@ -485,7 +572,14 @@ $message = '<div class="alert alert-warning">Ya existe una liquidación de ' . $
                         selEmp.addEventListener('change', function() {
                             // habilitar año, resetear año y mes
                             setDisabled(selAno, false);
+                            // Solo resetear si no hay un valor preseleccionado (después de POST)
+                            <?php if (isset($ano) && $ano > 0): ?>
+                            if (!selAno.querySelector('option[value="<?php echo $ano; ?>"]')) {
+                                resetSelect(selAno);
+                            }
+                            <?php else: ?>
                             resetSelect(selAno);
+                            <?php endif; ?>
                             setDisabled(selMes, true);
                             // limpiar estados disabled de los meses por si venían de otra selección
                             Array.from(selMes.options).forEach(opt => {
@@ -494,7 +588,14 @@ $message = '<div class="alert alert-warning">Ya existe una liquidación de ' . $
                                     opt.style.display = 'block';
                                 }
                             });
+                            // Solo resetear si no hay un valor preseleccionado (después de POST)
+                            <?php if (isset($mes_valor) && !empty($mes_valor)): ?>
+                            if (!selMes.querySelector('option[value="<?php echo $mes_valor; ?>"]')) {
+                                resetSelect(selMes);
+                            }
+                            <?php else: ?>
                             resetSelect(selMes);
+                            <?php endif; ?>
                         });
                     }
                     
@@ -513,6 +614,18 @@ $message = '<div class="alert alert-warning">Ya existe una liquidación de ' . $
                             actualizarMesesOcupados();
                         });
                     }
+                    
+                    // Si hay valores preseleccionados (después de POST), habilitar los campos correspondientes
+                    <?php if (isset($id_empleado) && $id_empleado > 0): ?>
+                        // Habilitar año si hay empleado seleccionado
+                        setDisabled(selAno, false);
+                        
+                        <?php if (isset($ano) && $ano > 0): ?>
+                            // Habilitar mes si hay año seleccionado
+                            setDisabled(selMes, false);
+                            actualizarMesesOcupados();
+                        <?php endif; ?>
+                    <?php endif; ?>
                 });
                 </script>
             </div>
@@ -575,14 +688,29 @@ $message = '<div class="alert alert-warning">Ya existe una liquidación de ' . $
                                 </div>
                             </div>
                         <?php else: ?>
-                            <div class="col-md-6">
+                            <div class="col-md-4">
+                                <h6>Devengos Detallados</h6>
+                                <table class="table table-sm">
+                                    <tr><td>Salario Base:</td><td>$ <?php echo number_format($results['salario_base'], 0, ',', '.'); ?></td></tr>
+                                    <?php if ($results['extras'] > 0): ?>
+                                    <tr><td>Extras:</td><td>$ <?php echo number_format($results['extras'], 0, ',', '.'); ?></td></tr>
+                                    <?php endif; ?>
+                                    <?php if ($results['horas_extras_cantidad'] > 0): ?>
+                                    <tr><td>Horas Extras (<?php echo number_format($results['horas_extras_cantidad'], 1, ',', '.'); ?> h):</td><td>$ <?php echo number_format($results['horas_extras_valor'], 0, ',', '.'); ?></td></tr>
+                                    <?php endif; ?>
+                                    <?php if ($results['incapacidad_dias'] > 0): ?>
+                                    <tr><td>Incapacidad (<?php echo $results['incapacidad_dias']; ?> días):</td><td>$ <?php echo number_format($results['incapacidad_valor'], 0, ',', '.'); ?></td></tr>
+                                    <?php endif; ?>
+                                </table>
+                            </div>
+                            <div class="col-md-4">
                                 <h6>Deducciones</h6>
                                 <table class="table table-sm">
                                     <tr><td>Salud (<?php echo $tasas_config['tasasalud']; ?>%):</td><td>$ <?php echo number_format($results['deducciones']['salud'], 0, ',', '.'); ?></td></tr>
                                     <tr><td>Pensión (<?php echo $tasas_config['tasapension']; ?>%):</td><td>$ <?php echo number_format($results['deducciones']['pension'], 0, ',', '.'); ?></td></tr>
                                 </table>
                             </div>
-                            <div class="col-md-6">
+                            <div class="col-md-4">
                                 <h6>Aportes Patronales</h6>
                                 <table class="table table-sm">
                                     <tr><td>Salud (8.5%):</td><td>$ <?php echo number_format($results['aportes']['salud_patronal'], 0, ',', '.'); ?></td></tr>

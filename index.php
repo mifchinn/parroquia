@@ -47,6 +47,12 @@ switch ($module) {
     case 'importarEmpleados':
         $page = __DIR__ . '/modulos/importarEmpleados.php';
         break;
+    case 'importarNovedades':
+        $page = __DIR__ . '/modulos/importarNovedades.php';
+        break;
+    case 'novedades':
+        $page = __DIR__ . '/modulos/novedades.php';
+        break;
     case 'manual':
         $page = __DIR__ . '/modulos/manual.php';
         break;
@@ -63,7 +69,7 @@ switch ($module) {
 
 // Detectar exportación CSV en reportes para omitir layout
 $isExport = ($module === 'reportes' && isset($_GET['export']) && $_GET['export'] === 'csv');
-$isImportTemplate = ($module === 'importarEmpleados' && $action === 'plantilla');
+$isImportTemplate = (($module === 'importarEmpleados' || $module === 'importarNovedades') && $action === 'plantilla');
 if ($isExport || $isImportTemplate) {
     if ($page && file_exists($page)) {
         include $page;

@@ -48,12 +48,12 @@ $isAdminSidebar = in_array($cargoSidebar, [1,2], true);
             </li>
             <li class="nav-item">
                 <a class="nav-link text-white px-3 py-2" href="<?php echo $_URL_; ?>/liquidacion">
-                    <i class="bi bi-calculator me-2"></i> Liquidacion
+                    <i class="bi bi-calculator me-2"></i> Liquidación
                 </a>
             </li>
             <li class="nav-item">
                 <a class="nav-link text-white px-3 py-2" href="<?php echo $_URL_; ?>/aprobacion">
-                    <i class="bi bi-check-circle me-2"></i> Aprobacion
+                    <i class="bi bi-check-circle me-2"></i> Aprobación
                 </a>
             </li>
             <li class="nav-item">
@@ -62,7 +62,7 @@ $isAdminSidebar = in_array($cargoSidebar, [1,2], true);
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link text-white px-3 py-2" href="<?php echo $_URL_; ?>/reportes?tipo=liquidaciones">
+                <a class="nav-link text-white px-3 py-2" href="<?php echo $_URL_; ?>/novedades">
                     <i class="bi bi-bell me-2"></i> Novedades
                 </a>
             </li>
@@ -82,6 +82,12 @@ $isAdminSidebar = in_array($cargoSidebar, [1,2], true);
                             <a class="nav-link text-white px-3 py-1 d-flex align-items-center gap-2" href="<?php echo $_URL_; ?>/importarEmpleados">
                                 <i class="bi bi-person-plus"></i>
                                 <span class="text-truncate">Importar Empleados</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-white px-3 py-1 d-flex align-items-center gap-2" href="<?php echo $_URL_; ?>/importarNovedades">
+                                <i class="bi bi-calendar-plus"></i>
+                                <span class="text-truncate">Importar Novedades</span>
                             </a>
                         </li>
                     </ul>

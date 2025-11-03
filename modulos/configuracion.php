@@ -53,6 +53,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['guardar_tasas'])) {
     $tasasalud = (int)($_POST['tasasalud'] ?? 4);
     $tasapension = (int)($_POST['tasapension'] ?? 4);
     $factor_extras = (float)($_POST['factor_extras'] ?? 1.25);
+    $incapacidad_primeros_dias = (float)($_POST['incapacidad_primeros_dias'] ?? 66.67);
+    $incapacidad_siguiente_dias = (float)($_POST['incapacidad_siguiente_dias'] ?? 66.67);
+    $incapacidad_limite_dias = (int)($_POST['incapacidad_limite_dias'] ?? 180);
     
     try {
         // Actualizar o insertar tasas
@@ -61,11 +64,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['guardar_tasas'])) {
         $existe = (int)$stmt->fetchColumn() > 0;
         
         if ($existe) {
-            $stmt = $pdo->prepare("UPDATE configuracion SET tasasalud = ?, tasapension = ?, factor_extras = ?, fecha_actualizacion = CURRENT_DATE WHERE id = 1");
-            $stmt->execute([$tasasalud, $tasapension, $factor_extras]);
+            $stmt = $pdo->prepare("UPDATE configuracion SET tasasalud = ?, tasapension = ?, factor_extras = ?, incapacidad_primeros_dias = ?, incapacidad_siguiente_dias = ?, incapacidad_limite_dias = ?, fecha_actualizacion = CURRENT_DATE WHERE id = 1");
+            $stmt->execute([$tasasalud, $tasapension, $factor_extras, $incapacidad_primeros_dias, $incapacidad_siguiente_dias, $incapacidad_limite_dias]);
         } else {
-            $stmt = $pdo->prepare("INSERT INTO configuracion (id, tasasalud, tasapension, factor_extras, fecha_creacion, fecha_actualizacion) VALUES (1, ?, ?, ?, CURRENT_DATE, CURRENT_DATE)");
-            $stmt->execute([$tasasalud, $tasapension, $factor_extras]);
+            $stmt = $pdo->prepare("INSERT INTO configuracion (id, tasasalud, tasapension, factor_extras, incapacidad_primeros_dias, incapacidad_siguiente_dias, incapacidad_limite_dias, fecha_creacion, fecha_actualizacion) VALUES (1, ?, ?, ?, ?, ?, ?, CURRENT_DATE, CURRENT_DATE)");
+            $stmt->execute([$tasasalud, $tasapension, $factor_extras, $incapacidad_primeros_dias, $incapacidad_siguiente_dias, $incapacidad_limite_dias]);
         }
         
         $success = true;
@@ -85,7 +88,10 @@ $config = [
     'email' => 'parroquia.sanfrancisco@ejemplo.com',
     'tasasalud' => 4,
     'tasapension' => 4,
-    'factor_extras' => 1.25
+    'factor_extras' => 1.25,
+    'incapacidad_primeros_dias' => 66.67,
+    'incapacidad_siguiente_dias' => 66.67,
+    'incapacidad_limite_dias' => 180
 ];
 
 try {
@@ -197,6 +203,53 @@ try {
                 </form>
             </div>
         </div>
+        
+        <!-- Configuración de Incapacidades -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="card-title">Configuración de Incapacidades (Normas Colombianas)</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <input type="hidden" name="guardar_tasas" value="1">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <input type="number" class="form-control" id="incapacidad_primeros_dias" name="incapacidad_primeros_dias" value="<?php echo htmlspecialchars($config['incapacidad_primeros_dias'] ?? ''); ?>" min="0" max="100" step="0.01" required>
+                                <label for="incapacidad_primeros_dias" class="form-label">Primeros 2 días (%)</label>
+                                <div class="form-text">Porcentaje pagado por empleador en los primeros 2 días de incapacidad</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <input type="number" class="form-control" id="incapacidad_siguiente_dias" name="incapacidad_siguiente_dias" value="<?php echo htmlspecialchars($config['incapacidad_siguiente_dias'] ?? ''); ?>" min="0" max="100" step="0.01" required>
+                                <label for="incapacidad_siguiente_dias" class="form-label">Días siguientes (%)</label>
+                                <div class="form-text">Porcentaje pagado por EPS desde el tercer día</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <input type="number" class="form-control" id="incapacidad_limite_dias" name="incapacidad_limite_dias" value="<?php echo htmlspecialchars($config['incapacidad_limite_dias'] ?? ''); ?>" min="1" max="365" required>
+                                <label for="incapacidad_limite_dias" class="form-label">Límite de días</label>
+                                <div class="form-text">Máximo de días a considerar para cálculo</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-info small">
+                        <i class="bi bi-info-circle me-1"></i>
+                        <strong>Normas Colombianas:</strong> Las incapacidades se calculan según lo establecido por la normativa.
+                        Generalmente, el empleador paga el 66.67% de los primeros 2 días y la EPS paga el mismo porcentaje desde el tercer día hasta el límite configurado.
+                    </div>
+                    
+                    <div class="d-flex justify-content-end">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-save me-2"></i>Guardar Cambios
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
     
     <div class="col-md-4">
@@ -210,6 +263,7 @@ try {
                     <li><strong>Información de la Organización:</strong> Datos básicos de la entidad que se usarán en los reportes y documentos.</li>
                     <li><strong>Tasas de Aportes:</strong> Porcentajes que se aplicarán en los cálculos de liquidación.</li>
                     <li><strong>Factor Horas Extra:</strong> Multiplicador para el cálculo de horas extras.</li>
+                    <li><strong>Configuración de Incapacidades:</strong> Parámetros para el cálculo de incapacidades según normas colombianas.</li>
                 </ul>
                 <div class="alert alert-info small">
                     <i class="bi bi-info-circle me-1"></i>
@@ -281,6 +335,76 @@ try {
     </div>
     
     <script>
+    function crearBackup() {
+        // Llamar al API para crear backup
+        fetch('<?php echo $_URL_; ?>/api/backupRestaurar.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                accion: 'crear_backup'
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Respaldo creado exitosamente: ' + data.archivo);
+                location.reload();
+            } else {
+                alert('Error al crear respaldo: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error al crear respaldo');
+        });
+    }
+    
+    function restaurarBackup() {
+        // Mostrar formulario de restauración
+        document.getElementById('formRestaurar').style.display = 'block';
+    }
+    
+    function cancelarRestaurar() {
+        // Ocultar formulario de restauración
+        document.getElementById('formRestaurar').style.display = 'none';
+    }
+    
+    // Manejar envío del formulario de restauración
+    document.addEventListener('DOMContentLoaded', function() {
+        const formRestaurar = document.getElementById('formRestaurar');
+        if (formRestaurar) {
+            formRestaurar.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const formData = new FormData(formRestaurar);
+                formData.append('accion', 'restaurar_backup');
+                
+                fetch('<?php echo $_URL_; ?>/api/backupRestaurar.php', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Datos restaurados exitosamente');
+                        location.reload();
+                    } else {
+                        alert('Error al restaurar: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error al restaurar');
+                });
+            });
+            
+            document.getElementById('btnCancelarRestaurar').addEventListener('click', function() {
+                cancelarRestaurar();
+            });
+        }
+    });
     document.addEventListener('DOMContentLoaded', function() {
         const btnCrearRespaldo = document.getElementById('btnCrearRespaldo');
         const btnRestaurarRespaldo = document.getElementById('btnRestaurarRespaldo');

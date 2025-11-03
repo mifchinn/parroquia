@@ -37,6 +37,8 @@ function detect_delimiter($line) {
 }
 
 $stats = ['insertados' => 0, 'saltados' => 0, 'errores' => 0];
+$detalles_errores = [];
+$detalles_exitosos = [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!isset($_FILES['archivo']) || $_FILES['archivo']['error'] !== UPLOAD_ERR_OK) {
@@ -97,6 +99,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             }
                             if (!$ok) {
                                 $stats['errores']++;
+                                $detalles_errores[] = "Línea $linea: Faltan campos requeridos";
                                 continue;
                             }
                             // Normalizar tipos
@@ -117,6 +120,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $exists = $stmt->fetchColumn();
                             if ($exists) {
                                 $stats['saltados']++;
+                                $detalles_errores[] = "Línea $linea: Empleado con documento '$documento' ya existe (omitido)";
                                 continue;
                             }
                             // Insertar
@@ -125,12 +129,56 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 $ins = $pdo->prepare("INSERT INTO empleado (nombre, apellido, password, id_tipodoc, documento, id_cargo, id_banco, id_ciudad, id_tipcue, cuenta, salario) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
                                 $ins->execute([$nombre, $apellido, $hash, $id_tipodoc, $documento, $id_cargo, $id_banco, $id_ciudad, $id_tipcue, $cuenta, $salario]);
                                 $stats['insertados']++;
+                                
+                                // Agregar detalles del registro exitoso
+                                $detalles_exitosos[] = [
+                                    'nombre' => $nombre,
+                                    'apellido' => $apellido,
+                                    'documento' => $documento,
+                                    'id_tipodoc' => $id_tipodoc,
+                                    'id_cargo' => $id_cargo,
+                                    'id_banco' => $id_banco,
+                                    'id_ciudad' => $id_ciudad,
+                                    'id_tipcue' => $id_tipcue,
+                                    'cuenta' => $cuenta,
+                                    'salario' => $salario
+                                ];
                             } catch (Exception $e) {
                                 $stats['errores']++;
+                                $detalles_errores[] = "Línea $linea: Error al insertar empleado '$nombre $apellido' - " . $e->getMessage();
                             }
                         }
                         fclose($fh);
                         $message = '<div class="alert alert-info">Importación finalizada. Insertados: ' . $stats['insertados'] . ' | Duplicados: ' . $stats['saltados'] . ' | Errores: ' . $stats['errores'] . '.</div>';
+                        
+                        // Mostrar detalles de registros exitosos
+                        if (!empty($detalles_exitosos)) {
+                            $message .= '<div class="alert alert-success mt-3" style="background-color: rgba(40, 167, 69, 0.1); border: 1px solid rgba(40, 167, 69, 0.3);"><h6>Empleados registrados exitosamente:</h6><div class="table-responsive"><table class="table table-sm" style="background-color: transparent; border: none;"><thead><tr><th>Nombre</th><th>Apellido</th><th>Documento</th><th>Tipo Doc</th><th>Cargo</th><th>Banco</th><th>Ciudad</th><th>Tipo Cuenta</th><th>Cuenta</th><th>Salario</th></tr></thead><tbody>';
+                            foreach ($detalles_exitosos as $registro) {
+                                $message .= '<tr style="background-color: transparent; border: none;">';
+                                $message .= '<td style="background-color: transparent; border: none;">' . htmlspecialchars($registro['nombre']) . '</td>';
+                                $message .= '<td style="background-color: transparent; border: none;">' . htmlspecialchars($registro['apellido']) . '</td>';
+                                $message .= '<td style="background-color: transparent; border: none;">' . htmlspecialchars($registro['documento']) . '</td>';
+                                $message .= '<td style="background-color: transparent; border: none;">' . htmlspecialchars($registro['id_tipodoc']) . '</td>';
+                                $message .= '<td style="background-color: transparent; border: none;">' . htmlspecialchars($registro['id_cargo']) . '</td>';
+                                $message .= '<td style="background-color: transparent; border: none;">' . htmlspecialchars($registro['id_banco']) . '</td>';
+                                $message .= '<td style="background-color: transparent; border: none;">' . htmlspecialchars($registro['id_ciudad']) . '</td>';
+                                $message .= '<td style="background-color: transparent; border: none;">' . htmlspecialchars($registro['id_tipcue']) . '</td>';
+                                $message .= '<td style="background-color: transparent; border: none;">' . htmlspecialchars($registro['cuenta']) . '</td>';
+                                $message .= '<td style="background-color: transparent; border: none;">' . htmlspecialchars($registro['salario']) . '</td>';
+                                $message .= '</tr>';
+                            }
+                            $message .= '</tbody></table></div></div>';
+                        }
+                        
+                        // Mostrar detalles de errores si hay alguno
+                        if (!empty($detalles_errores)) {
+                            $message .= '<div class="alert alert-warning mt-3" style="background-color: rgba(255, 193, 7, 0.1); border: 1px solid rgba(255, 193, 7, 0.3);"><h6>Detalles de errores y advertencias:</h6><ul class="mb-0" style="background-color: rgba(255, 255, 255, 0.5); padding: 10px; border-radius: 5px;">';
+                            foreach ($detalles_errores as $error) {
+                                $message .= '<li>' . htmlspecialchars($error) . '</li>';
+                            }
+                            $message .= '</ul></div>';
+                        }
                     }
                 }
             }

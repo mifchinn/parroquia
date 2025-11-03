@@ -64,6 +64,10 @@ CREATE TABLE liquidacion (
     dias_trabajados INT NOT NULL DEFAULT 30, -- Días trabajados (1-30)
     salario_base DECIMAL(10,2) NOT NULL,
     devengos DECIMAL(10,2) DEFAULT 0.00, -- Extras, etc.
+    horas_extras DECIMAL(10,2) DEFAULT 0.00, -- Valor calculado de horas extras
+    horas_extras_cantidad DECIMAL(5,2) DEFAULT 0.00, -- Cantidad de horas extras
+    incapacidad_valor DECIMAL(10,2) DEFAULT 0.00, -- Valor de incapacidad (positivo si suma, negativo si resta)
+    incapacidad_dias INT DEFAULT 0, -- Días de incapacidad
     deducciones_total DECIMAL(10,2) DEFAULT 0.00,
     aportes_total DECIMAL(10,2) DEFAULT 0.00,
     total_neto DECIMAL(10,2) NOT NULL,
@@ -126,6 +130,20 @@ CREATE TABLE comprobante (
     FOREIGN KEY (id_liquidacion) REFERENCES liquidacion(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
+-- Tabla novedades
+CREATE TABLE novedades (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    id_empleado INT NOT NULL,
+    tipo ENUM('incapacidad', 'hora_extra') NOT NULL,
+    fecha_inicio DATE NOT NULL,
+    hora_inicio TIME NOT NULL,
+    fecha_fin DATE NOT NULL,
+    hora_fin TIME NOT NULL,
+    descripcion TEXT,
+    fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (id_empleado) REFERENCES empleado(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
 -- Tabla reporte eliminada por requerimiento (ya no se utiliza)
 
 -- Datos iniciales para tablas auxiliares (sin acentos)
@@ -168,11 +186,15 @@ CREATE TABLE configuracion (
     tasasalud INT NOT NULL DEFAULT 4,
     tasapension INT NOT NULL DEFAULT 4,
     factor_extras FLOAT NOT NULL DEFAULT 1.25,
-    fechar_espaldo TIMESTAMP NULL DEFAULT NULL,
+    -- Configuración para incapacidades según normas colombianas
+    incapacidad_primeros_dias DECIMAL(5,2) DEFAULT 66.67, -- Porcentaje pagado por empleador en primeros 2 días
+    incapacidad_siguiente_dias DECIMAL(5,2) DEFAULT 66.67, -- Porcentaje pagado por EPS en días siguientes
+    incapacidad_limite_dias INT DEFAULT 180, -- Límite de días para cálculo
+    fecha_respaldo TIMESTAMP NULL DEFAULT NULL,
     fecha_creacion DATE DEFAULT CURRENT_DATE,
     fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 
 -- Insertar datos iniciales en configuracion
-INSERT INTO configuracion (id, nombre, nit, direccion, telefono, email, tasasalud, tasapension, factor_extras)
-VALUES (1, 'Parroquia San Francisco de Asís', '123456789-0', 'Calle Principal #123, Quibdó, Chocó', '(4) 123-4567', 'parroquia.sanfrancisco@ejemplo.com', 4, 4, 1.25);
+INSERT INTO configuracion (id, nombre, nit, direccion, telefono, email, tasasalud, tasapension, factor_extras, incapacidad_primeros_dias, incapacidad_siguiente_dias, incapacidad_limite_dias, fecha_respaldo)
+VALUES (1, 'Parroquia San Francisco de Asís', '123456789-0', 'Calle Principal #123, Quibdó, Chocó', '(4) 123-4567', 'parroquia.sanfrancisco@ejemplo.com', 4, 4, 1.25, 66.67, 66.67, 180, NULL);

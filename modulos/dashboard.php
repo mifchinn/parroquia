@@ -33,6 +33,11 @@ try {
     $stmt = $pdo->prepare("SELECT COALESCE(SUM(l.total_neto),0) FROM liquidacion l WHERE l.fecha_liquidacion >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)");
     $stmt->execute();
     $totalPagado30 = (float)$stmt->fetchColumn();
+    
+    // Contar novedades registradas en los últimos 30 días
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM novedades WHERE fecha_registro >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)");
+    $stmt->execute();
+    $novedadesPend = (int)$stmt->fetchColumn();
 } catch (Throwable $e) {
     $empleadosNoAdmin = 0;
     $novedadesPend = 0;
@@ -70,7 +75,7 @@ try {
         <div class="card border-0 shadow-sm h-100">
             <div class="card-body d-flex align-items-center justify-content-between">
                 <div>
-                    <div class="text-muted small">Novedades pendientes (30 días)</div>
+                    <div class="text-muted small">Novedades registradas (30 días)</div>
                     <div class="h4 mb-0"><?php echo number_format($novedadesPend, 0, ',', '.'); ?></div>
                 </div>
                 <i class="bi bi-bell fs-1 text-warning"></i>
