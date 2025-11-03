@@ -176,12 +176,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
    $mes_valor = $_POST['mes'] ?? '';
    $ano = (int)($_POST['ano'] ?? 0);
    $extras = (float)($_POST['extras'] ?? 0);
-   $dias_trabajados = (int)($_POST['dias_trabajados'] ?? 30);
-   
-   // Validar que los días estén entre 1 y 30
-   if ($dias_trabajados < 1 || $dias_trabajados > 30) {
-       $dias_trabajados = 30;
-   }
    
    // Procesar el valor del mes para determinar si es prima
    if (strpos($mes_valor, '-prima') !== false) {
@@ -193,13 +187,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
    }
 
    if ($id_empleado > 0 && $mes >= 1 && $mes <= 12 && $ano >= 2024 && $extras >= 0) {
-       // Obtener salario y nombre empleado
-       $stmt = $pdo->prepare("SELECT nombre, apellido, salario FROM empleado WHERE id = ?");
-       $stmt->execute([$id_empleado]);
-       $emp = $stmt->fetch(PDO::FETCH_ASSOC);
-       $salario_base = (float)($emp['salario'] ?? 0);
+        // Obtener salario y nombre empleado
+        $stmt = $pdo->prepare("SELECT nombre, apellido, salario FROM empleado WHERE id = ?");
+        $stmt->execute([$id_empleado]);
+        $emp = $stmt->fetch(PDO::FETCH_ASSOC);
+        $salario_base = (float)($emp['salario'] ?? 0);
 
-       if ($salario_base > 0) {
+        if ($salario_base > 0) {
+            // Calcular incapacidad del período primero para determinar días trabajados reales
+            if ($tipo_liquidacion === 'mensual') {
+                $salario_diario = $salario_base / 30;
+                $incapacidad_data = calcularIncapacidad($pdo, $id_empleado, $ano, $mes, $salario_diario, $tasas_config);
+                $incapacidad_dias = $incapacidad_data['dias'];
+                
+                // Calcular días trabajados reales (30 días - días de incapacidad)
+                $dias_trabajados = 30 - $incapacidad_dias;
+                
+                // Validar que los días estén entre 1 y 30
+                if ($dias_trabajados < 1) {
+                    $dias_trabajados = 1;
+                } elseif ($dias_trabajados > 30) {
+                    $dias_trabajados = 30;
+                }
+            } else {
+                // Para prima, los días trabajados no aplican
+                $dias_trabajados = 30;
+                $incapacidad_dias = 0;
+            }
+        } else {
+            $dias_trabajados = 30;
+            $incapacidad_dias = 0;
+        }
+   } else {
+        $dias_trabajados = 30;
+        $incapacidad_dias = 0;
+   }
+   
            if ($tipo_liquidacion === 'prima') {
                // Liquidación de prima semestral
                if ($mes == 6) {
@@ -288,10 +311,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                $valor_hora_extra = ($salario_base / 240) * $tasas_config['factor_extras']; // 240 horas mensuales promedio
                $horas_extras_valor = $horas_extras_cantidad * $valor_hora_extra;
                
-               // Calcular incapacidad del período
-               $salario_diario = $salario_base / 30;
-               $incapacidad_data = calcularIncapacidad($pdo, $id_empleado, $ano, $mes, $salario_diario, $tasas_config);
-               $incapacidad_dias = $incapacidad_data['dias'];
+               // Ya calculamos la incapacidad arriba, ahora obtenemos el valor
                $incapacidad_valor = $incapacidad_data['valor'];
                
                // Calcular devengos totales
@@ -513,8 +533,9 @@ $message = '<div class="alert alert-warning">Ya existe una liquidación de ' . $
                         </div>
                         <div class="col-md-3">
                             <div class="mb-3">
-                                <input type="number" class="form-control" id="dias_trabajados" name="dias_trabajados" placeholder="" value="<?php echo isset($dias_trabajados) ? $dias_trabajados : 30; ?>" min="1" max="30">
-                                <label for="dias_trabajados" class="form-label">Días trabajados</label>
+                                <input type="number" class="form-control" id="dias_trabajados" name="dias_trabajados" placeholder="" value="<?php echo isset($dias_trabajados) ? $dias_trabajados : 30; ?>" min="1" max="30" readonly>
+                                <label for="dias_trabajados" class="form-label">Días trabajados (calculado automáticamente)</label>
+                                <small class="form-text text-muted">Se calcula automáticamente restando los días de incapacidad</small>
                             </div>
                         </div>
                     </div>
@@ -795,8 +816,9 @@ document.addEventListener('DOMContentLoaded', function() {
                         </div>
                         <div class="col-md-2" id="div_dias_masivo">
                             <div class="mb-3">
-                                <input type="number" class="form-control" id="dias_masivo" name="dias_trabajados" value="30" min="1" max="30">
+                                <input type="number" class="form-control" id="dias_masivo" name="dias_trabajados" value="30" min="1" max="30" readonly>
                                 <label for="dias_masivo" class="form-label">Días trabajados</label>
+                                <small class="form-text text-muted">Se calcula automáticamente restando incapacidad</small>
                             </div>
                         </div>
                         <div class="col-md-2" id="div_extras_masivo" style="display: none;">

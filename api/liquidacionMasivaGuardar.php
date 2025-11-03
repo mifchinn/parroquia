@@ -155,11 +155,39 @@ function calcularIncapacidad($pdo, $id_empleado, $ano, $mes, $salario_diario, $c
     
     foreach ($empleados as $emp) {
         $id_empleado = (int)$emp['id'];
-        $dias_trabajados = (int)($emp['dias'] ?? 30);
         
-        // Validar que los días estén entre 1 y 30
-        if ($dias_trabajados < 1 || $dias_trabajados > 30) {
+        // Para liquidación mensual, calcular días trabajados reales restando incapacidad
+        if ($tipo_liquidacion === 'mensual') {
+            // Obtener datos del empleado primero para calcular incapacidad
+            $stmt = $pdo->prepare("SELECT salario FROM empleado WHERE id = ?");
+            $stmt->execute([$id_empleado]);
+            $emp_data = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if ($emp_data && (float)$emp_data['salario'] > 0) {
+                $salario_base = (float)$emp_data['salario'];
+                $salario_diario = $salario_base / 30;
+                
+                // Calcular incapacidad del período
+                $incapacidad_data = calcularIncapacidad($pdo, $id_empleado, $ano, $mes, $salario_diario, $tasas_config);
+                $incapacidad_dias = $incapacidad_data['dias'];
+                
+                // Calcular días trabajados reales (30 días - días de incapacidad)
+                $dias_trabajados = 30 - $incapacidad_dias;
+                
+                // Validar que los días estén entre 1 y 30
+                if ($dias_trabajados < 1) {
+                    $dias_trabajados = 1;
+                } elseif ($dias_trabajados > 30) {
+                    $dias_trabajados = 30;
+                }
+            } else {
+                $dias_trabajados = 30;
+                $incapacidad_dias = 0;
+            }
+        } else {
+            // Para prima, los días trabajados no aplican
             $dias_trabajados = 30;
+            $incapacidad_dias = 0;
         }
         
         try {
@@ -172,7 +200,7 @@ function calcularIncapacidad($pdo, $id_empleado, $ano, $mes, $salario_diario, $c
                 continue;
             }
             
-            // Obtener datos del empleado
+            // Obtener datos del empleado (ya lo tenemos arriba para mensual, pero lo necesitamos completo)
             $stmt = $pdo->prepare("SELECT nombre, apellido, salario FROM empleado WHERE id = ?");
             $stmt->execute([$id_empleado]);
             $emp_data = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -183,6 +211,16 @@ function calcularIncapacidad($pdo, $id_empleado, $ano, $mes, $salario_diario, $c
             }
             
             $salario_base = (float)$emp_data['salario'];
+            
+            // Para liquidación mensual, ya calculamos la incapacidad arriba
+            if ($tipo_liquidacion === 'mensual') {
+                $salario_diario = $salario_base / 30;
+                $incapacidad_data = calcularIncapacidad($pdo, $id_empleado, $ano, $mes, $salario_diario, $tasas_config);
+                $incapacidad_valor = $incapacidad_data['valor'];
+            } else {
+                $incapacidad_dias = 0;
+                $incapacidad_valor = 0;
+            }
             
             if ($tipo_liquidacion === 'prima') {
                 // Liquidación de prima semestral
@@ -254,11 +292,7 @@ function calcularIncapacidad($pdo, $id_empleado, $ano, $mes, $salario_diario, $c
                 $valor_hora_extra = ($salario_base / 240) * $tasas_config['factor_extras']; // 240 horas mensuales promedio
                 $horas_extras_valor = $horas_extras_cantidad * $valor_hora_extra;
                 
-                // Calcular incapacidad del período
-                $salario_diario = $salario_base / 30;
-                $incapacidad_data = calcularIncapacidad($pdo, $id_empleado, $ano, $mes, $salario_diario, $tasas_config);
-                $incapacidad_dias = $incapacidad_data['dias'];
-                $incapacidad_valor = $incapacidad_data['valor'];
+                // Ya calculamos la incapacidad arriba, ahora usamos el valor
                 
                 // Calcular devengos totales
                 $devengos = $salario_ajustado + $horas_extras_valor + $incapacidad_valor;
