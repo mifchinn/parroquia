@@ -223,7 +223,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $incapacidad_dias = 0;
    }
    
-           if ($tipo_liquidacion === 'prima') {
+   if ($tipo_liquidacion === 'prima') {
                // Liquidación de prima semestral
                if ($mes == 6) {
                    // Prima de junio (acumulado enero-junio)
