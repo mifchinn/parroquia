@@ -296,6 +296,9 @@ function calcularIncapacidad($pdo, $id_empleado, $ano, $mes, $salario_base, $con
                 // Calcular devengos totales
                 $devengos = $salario_ajustado + $horas_extras_valor + $incapacidad_valor;
                 
+                // Asegurar que los devengos no tengan más de 2 decimales para evitar problemas de redondeo
+                $devengos = round($devengos, 2);
+                
                 // Deducciones empleado usando tasas parametrizadas
                 $salud = $devengos * ($tasas_config['tasasalud'] / 100);
                 $pension = $devengos * ($tasas_config['tasapension'] / 100);

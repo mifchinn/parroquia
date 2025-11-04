@@ -316,6 +316,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                
                // Calcular devengos totales
                $devengos = $salario_ajustado + $extras + $horas_extras_valor + $incapacidad_valor;
+               
+               // Asegurar que los devengos no tengan más de 2 decimales para evitar problemas de redondeo
+               $devengos = round($devengos, 2);
 
                // Deducciones empleado usando tasas parametrizadas
                $salud = $devengos * ($tasas_config['tasasalud'] / 100);
