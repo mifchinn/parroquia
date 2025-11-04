@@ -58,7 +58,7 @@ function calcularHorasExtras($pdo, $id_empleado, $ano, $mes) {
 }
 
 // Función para calcular incapacidad de un empleado en un período
-function calcularIncapacidad($pdo, $id_empleado, $ano, $mes, $salario_diario, $config) {
+function calcularIncapacidad($pdo, $id_empleado, $ano, $mes, $salario_base, $config) {
     $stmt = $pdo->prepare("
         SELECT fecha_inicio, fecha_fin
         FROM novedades
@@ -80,16 +80,17 @@ function calcularIncapacidad($pdo, $id_empleado, $ano, $mes, $salario_diario, $c
         $dias = min($dias, $config['incapacidad_limite_dias']);
         $total_dias += $dias;
         
-        // Calcular valor según normas colombianas
+        // Calcular valor usando salario base directamente para evitar redondeo
+        // Salario mensual / 30 * días * porcentaje = Salario mensual * días * porcentaje / 30
         if ($dias <= 2) {
             // Primeros 2 días: paga el empleador
-            $valor = $salario_diario * $dias * ($config['incapacidad_primeros_dias'] / 100);
+            $valor = ($salario_base * $dias * $config['incapacidad_primeros_dias']) / 3000;
         } else {
             // Primeros 2 días: paga el empleador
-            $valor_primeros = $salario_diario * 2 * ($config['incapacidad_primeros_dias'] / 100);
+            $valor_primeros = ($salario_base * 2 * $config['incapacidad_primeros_dias']) / 3000;
             // Días restantes: paga la EPS
             $dias_restantes = $dias - 2;
-            $valor_restantes = $salario_diario * $dias_restantes * ($config['incapacidad_siguiente_dias'] / 100);
+            $valor_restantes = ($salario_base * $dias_restantes * $config['incapacidad_siguiente_dias']) / 3000;
             $valor = $valor_primeros + $valor_restantes;
         }
         
@@ -196,8 +197,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($salario_base > 0) {
             // Calcular incapacidad del período primero para determinar días trabajados reales
             if ($tipo_liquidacion === 'mensual') {
-                $salario_diario = $salario_base / 30;
-                $incapacidad_data = calcularIncapacidad($pdo, $id_empleado, $ano, $mes, $salario_diario, $tasas_config);
+                $incapacidad_data = calcularIncapacidad($pdo, $id_empleado, $ano, $mes, $salario_base, $tasas_config);
                 $incapacidad_dias = $incapacidad_data['dias'];
                 
                 // Calcular días trabajados reales (30 días - días de incapacidad)
@@ -303,12 +303,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                }
            } else {
                // Liquidación mensual normal con ajuste por días trabajados
-               $factor_dias = $dias_trabajados / 30;
-               $salario_ajustado = $salario_base * $factor_dias;
+               // Calcular salario ajustado usando fracciones para evitar redondeo
+               $salario_ajustado = ($salario_base * $dias_trabajados) / 30;
                
                // Calcular horas extras del período
                $horas_extras_cantidad = calcularHorasExtras($pdo, $id_empleado, $ano, $mes);
-               $valor_hora_extra = ($salario_base / 240) * $tasas_config['factor_extras']; // 240 horas mensuales promedio
+               $valor_hora_extra = ($salario_base * $tasas_config['factor_extras']) / 240; // 240 horas mensuales promedio
                $horas_extras_valor = $horas_extras_cantidad * $valor_hora_extra;
                
                // Ya calculamos la incapacidad arriba, ahora obtenemos el valor
@@ -325,30 +325,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                // Aportes patronales (solo Salud y Pensión) ajustados por días
                // Usando tasas patronales estándar (8.5% y 12%)
-               $salud_patronal = $salario_base * 0.085 * $factor_dias;
-               $pension_patronal = $salario_base * 0.12 * $factor_dias;
+               $salud_patronal = ($salario_base * 85 * $dias_trabajados) / 10000; // 8.5% = 85/10000
+               $pension_patronal = ($salario_base * 12 * $dias_trabajados) / 100; // 12% = 12/100
                $aportes_total = $salud_patronal + $pension_patronal;
                
                // Aportes adicionales según el mes (ajustados por días)
                $aportes_adicionales = 0;
                if ($mes == 6 || $mes == 12) {
                    // Junio y diciembre: aporte de prima
-                   $prima_aporte = $salario_base * (1/12) * $factor_dias;
+                   $prima_aporte = ($salario_base * $dias_trabajados) / 360; // 1/12 = 30/360
                    $aportes_adicionales += $prima_aporte;
                }
                
                if ($mes == 1) {
                    // Enero: aporte de cesantías
-                   $cesantias_aporte = $salario_base * (1/12) * $factor_dias;
+                   $cesantias_aporte = ($salario_base * $dias_trabajados) / 360; // 1/12 = 30/360
                    $aportes_adicionales += $cesantias_aporte;
                }
                
                $aportes_total += $aportes_adicionales;
 
                // Prestaciones (mensuales aproximadas) ajustadas por días
-               $prima = $salario_base * (1/12) * $factor_dias;
-               $cesantias = $salario_base * (1/12) * $factor_dias;
-               $vacaciones = $salario_base * (15/360) * $factor_dias;
+               $prima = ($salario_base * $dias_trabajados) / 360; // 1/12 = 30/360
+               $cesantias = ($salario_base * $dias_trabajados) / 360; // 1/12 = 30/360
+               $vacaciones = ($salario_base * 15 * $dias_trabajados) / 10800; // 15/360 = 15/360
            }
 
            // Resultados para vista previa
