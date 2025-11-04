@@ -326,10 +326,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                $deducciones_total = $salud + $pension;
                $total_neto = $devengos - $deducciones_total;
 
-               // Aportes patronales (solo Salud y Pensión) ajustados por días
+               // Aportes patronales (solo Salud y Pensión) calculados sobre el devengo total
                // Usando tasas patronales estándar (8.5% y 12%)
-               $salud_patronal = ($salario_base * 85 * $dias_trabajados) / 10000; // 8.5% = 85/10000
-               $pension_patronal = ($salario_base * 12 * $dias_trabajados) / 100; // 12% = 12/100
+               $salud_patronal = $devengos * 0.085; // 8.5%
+               $pension_patronal = $devengos * 0.12; // 12%
                $aportes_total = $salud_patronal + $pension_patronal;
                
                // Aportes adicionales según el mes (ajustados por días)
